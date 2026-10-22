@@ -1,0 +1,80 @@
+plugins {
+    id 'com.gradleup.shadow'
+}
+
+architectury {
+    platformSetupLoomIde()
+    neoForge()
+}
+
+configurations {
+    common
+    shadowCommon
+    compileClasspath.extendsFrom common
+    runtimeClasspath.extendsFrom common
+    developmentNeoForge.extendsFrom common
+}
+
+dependencies {
+    neoForge "net.neoforged:neoforge:${rootProject.neoforge_version}"
+    modApi "dev.architectury:architectury-neoforge:${rootProject.architectury_version}"
+
+    // The @REIPluginClient annotation lives in the REI neoforge artifact, so the thin annotated plugin
+    // subclass needs it at compile time regardless of the runtime viewer.
+    modCompileOnly "me.shedaniel:RoughlyEnoughItems-neoforge:${rootProject.rei_version}"
+
+    // Dev runtime recipe viewer. Exactly one (or none) is loaded so dev tests never run multiple
+    // viewers at once. Select with -Pdev_viewer=jei|emi|rei|none (default jei). The mod hard-depends
+    // on no viewer.
+    def devViewer = (project.findProperty('dev_viewer') ?: 'jei').toString().toLowerCase()
+    if (devViewer == 'jei') {
+        modRuntimeOnly "mezz.jei:jei-1.21.1-neoforge:${rootProject.jei_version}"
+    } else if (devViewer == 'emi') {
+        modRuntimeOnly "dev.emi:emi-neoforge:${rootProject.emi_version}"
+    } else if (devViewer == 'rei') {
+        modRuntimeOnly "me.shedaniel:RoughlyEnoughItems-neoforge:${rootProject.rei_version}"
+        modRuntimeOnly "me.shedaniel.cloth:cloth-config-neoforge:${rootProject.cloth_config_version}"
+    } else if (devViewer != 'none') {
+        throw new GradleException("Unknown dev_viewer '${devViewer}'. Use jei, emi, rei, or none.")
+    }
+
+    common(project(path: ':common', configuration: 'namedElements')) { transitive = false }
+    shadowCommon(project(path: ':common', configuration: 'transformProductionNeoForge')) { transitive = false }
+}
+
+processResources {
+    inputs.property 'version', project.version
+
+    filesMatching('META-INF/neoforge.mods.toml') {
+        expand 'version': project.version
+    }
+}
+
+shadowJar {
+    exclude 'fabric.mod.json'
+    exclude 'architectury.common.json'
+    configurations = [project.configurations.shadowCommon]
+    archiveClassifier = 'dev-shadow'
+}
+
+remapJar {
+    input.set shadowJar.archiveFile
+    dependsOn shadowJar
+    archiveClassifier = 'NEOFORGE'
+}
+
+jar {
+    archiveClassifier = 'dev'
+}
+
+sourcesJar {
+    def commonSources = project(':common').sourcesJar
+    dependsOn commonSources
+    from commonSources.archiveFile.map { zipTree(it) }
+}
+
+components.java {
+    withVariantsFromConfiguration(project.configurations.shadowRuntimeElements) {
+        skip()
+    }
+}

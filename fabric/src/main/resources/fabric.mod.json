@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "id": "ore_distribution_scanner",
+  "version": "${version}",
+  "name": "Ore Distribution Scanner",
+  "description": "Scan a dimension in-game and view ore distribution by Y level and biome, rendered natively in JEI, EMI, and REI. A read-only, in-game alternative to JER's region scanner.",
+  "authors": ["Alkeari"],
+  "license": "LICENSE",
+  "icon": "icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.alkeari.ore_distribution_scanner.fabric.OreDistributionScannerFabric"
+    ],
+    "jei_mod_plugin": [
+      "com.alkeari.ore_distribution_scanner.compat.jei.JeiOdsPlugin"
+    ],
+    "emi": [
+      "com.alkeari.ore_distribution_scanner.compat.emi.OdsEmiPlugin"
+    ],
+    "rei_client": [
+      "com.alkeari.ore_distribution_scanner.compat.rei.OdsReiClientPlugin"
+    ],
+    "modmenu": [
+      "com.alkeari.ore_distribution_scanner.fabric.OdsModMenu"
+    ]
+  },
+  "mixins": [
+    "ore_distribution_scanner.common.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.3",
+    "fabric-api": "*",
+    "minecraft": ">=1.21.1",
+    "architectury": ">=13.0.8"
+  },
+  "suggests": {
+    "jei": "*",
+    "emi": "*",
+    "roughlyenoughitems": "*",
+    "modmenu": "*",
+    "cloth-config2": ">=15.0.140"
+  }
+}

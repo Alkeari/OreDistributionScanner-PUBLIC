@@ -1,0 +1,87 @@
+plugins {
+    id 'com.gradleup.shadow'
+}
+
+architectury {
+    platformSetupLoomIde()
+    fabric()
+}
+
+configurations {
+    common
+    shadowCommon
+    compileClasspath.extendsFrom common
+    runtimeClasspath.extendsFrom common
+    developmentFabric.extendsFrom common
+}
+
+dependencies {
+    modImplementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
+    modApi "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}"
+    modApi "dev.architectury:architectury-fabric:${rootProject.architectury_version}"
+    modImplementation("me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_config_version}") {
+        exclude group: 'net.fabricmc.fabric-api'
+    }
+    // ModMenu surfaces the in-game config screen on Fabric. Optional for users (suggested, not depended).
+    modImplementation "com.terraformersmc:modmenu:${rootProject.modmenu_version}"
+    // NightConfig must be on the runtime classpath and bundled: cloth-config only jar-in-jars it,
+    // which is not surfaced to the dev classpath, so the Fabric config path crashes without this.
+    implementation "com.electronwill.night-config:core:${rootProject.nightconfig_version}"
+    implementation "com.electronwill.night-config:toml:${rootProject.nightconfig_version}"
+    include "com.electronwill.night-config:core:${rootProject.nightconfig_version}"
+    include "com.electronwill.night-config:toml:${rootProject.nightconfig_version}"
+
+    // Dev runtime recipe viewer. Exactly one (or none) is loaded so dev tests never run multiple
+    // viewers at once. Select with -Pdev_viewer=jei|emi|rei|none (default jei). The mod hard-depends
+    // on none of them; production users install whichever single viewer they prefer.
+    def devViewer = (project.findProperty('dev_viewer') ?: 'jei').toString().toLowerCase()
+    if (devViewer == 'jei') {
+        modRuntimeOnly "mezz.jei:jei-1.21.1-fabric:${rootProject.jei_version}"
+    } else if (devViewer == 'emi') {
+        modRuntimeOnly "dev.emi:emi-fabric:${rootProject.emi_version}"
+    } else if (devViewer == 'rei') {
+        modRuntimeOnly "me.shedaniel:RoughlyEnoughItems-fabric:${rootProject.rei_version}"
+    } else if (devViewer != 'none') {
+        throw new GradleException("Unknown dev_viewer '${devViewer}'. Use jei, emi, rei, or none.")
+    }
+
+    common(project(path: ':common', configuration: 'namedElements')) { transitive = false }
+    shadowCommon(project(path: ':common', configuration: 'transformProductionFabric')) { transitive = false }
+}
+
+processResources {
+    inputs.property 'version', project.version
+
+    filesMatching('fabric.mod.json') {
+        expand 'version': project.version
+    }
+}
+
+shadowJar {
+    exclude 'architectury.common.json'
+    configurations = [project.configurations.shadowCommon]
+    archiveClassifier = 'dev-shadow'
+}
+
+remapJar {
+    injectAccessWidener = true
+    input.set shadowJar.archiveFile
+    dependsOn shadowJar
+    archiveClassifier = 'FABRIC'
+}
+
+jar {
+    archiveClassifier = 'dev'
+}
+
+sourcesJar {
+    def commonSources = project(':common').sourcesJar
+    dependsOn commonSources
+    from commonSources.archiveFile.map { zipTree(it) }
+}
+
+components.java {
+    withVariantsFromConfiguration(project.configurations.shadowRuntimeElements) {
+        skip()
+    }
+}

@@ -1,0 +1,35 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "LICENSE"
+
+[[mods]]
+modId = "ore_distribution_scanner"
+version = "${version}"
+displayName = "Ore Distribution Scanner"
+authors = "Alkeari"
+logoFile = "icon.png"
+description = '''Scan a dimension in-game and view ore distribution by Y level and biome, rendered natively in JEI, EMI, and REI. A read-only, in-game alternative to JER's region scanner.'''
+
+[[mixins]]
+config = "ore_distribution_scanner.common.mixins.json"
+
+[[dependencies.ore_distribution_scanner]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1.0,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.ore_distribution_scanner]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1,1.21.2)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.ore_distribution_scanner]]
+modId = "architectury"
+type = "required"
+versionRange = "[13.0.8,)"
+ordering = "NONE"
+side = "BOTH"
