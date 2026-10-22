@@ -1,0 +1,87 @@
+plugins {
+    id 'com.gradleup.shadow'
+}
+
+architectury {
+    platformSetupLoomIde()
+    forge()
+}
+
+loom {
+    forge {
+        mixinConfig 'ore_distribution_scanner.common.mixins.json'
+    }
+}
+
+configurations {
+    common
+    shadowCommon
+    compileClasspath.extendsFrom common
+    runtimeClasspath.extendsFrom common
+    developmentForge.extendsFrom common
+}
+
+dependencies {
+    forge "net.minecraftforge:forge:${rootProject.forge_version}"
+    modApi "dev.architectury:architectury-forge:${rootProject.architectury_version}"
+
+    // The @REIPluginClient annotation lives in the REI forge artifact, so the thin annotated plugin
+    // subclass needs it at compile time regardless of the runtime viewer.
+    modCompileOnly "me.shedaniel:RoughlyEnoughItems-forge:${rootProject.rei_version}"
+
+    // Dev runtime recipe viewer. Exactly one (or none) is loaded so dev tests never run multiple
+    // viewers at once. Select with -Pdev_viewer=jei|rei|none (default jei). EMI is unsupported on
+    // Forge dev (emi-xplat-intermediary's mixin refmap crashes the Architectury Forge dev client);
+    // dev-test EMI on Fabric. The mod hard-depends on no viewer.
+    def devViewer = (project.findProperty('dev_viewer') ?: 'jei').toString().toLowerCase()
+    if (devViewer == 'jei') {
+        modRuntimeOnly "mezz.jei:jei-1.20.1-forge:${rootProject.jei_version}"
+    } else if (devViewer == 'rei') {
+        modRuntimeOnly "me.shedaniel:RoughlyEnoughItems-forge:${rootProject.rei_version}"
+        modRuntimeOnly "me.shedaniel.cloth:cloth-config-forge:${rootProject.cloth_config_version}"
+    } else if (devViewer == 'emi') {
+        logger.warn("dev_viewer=emi is not supported on Forge dev; loading no viewer. Dev-test EMI on :fabric:runClient.")
+    } else if (devViewer != 'none') {
+        throw new GradleException("Unknown dev_viewer '${devViewer}'. Use jei, rei, or none (emi: Fabric only).")
+    }
+
+    common(project(path: ':common', configuration: 'namedElements')) { transitive = false }
+    shadowCommon(project(path: ':common', configuration: 'transformProductionForge')) { transitive = false }
+}
+
+processResources {
+    inputs.property 'version', project.version
+
+    filesMatching('META-INF/mods.toml') {
+        expand 'version': project.version
+    }
+}
+
+shadowJar {
+    exclude 'fabric.mod.json'
+    exclude 'architectury.common.json'
+    configurations = [project.configurations.shadowCommon]
+    archiveClassifier = 'dev-shadow'
+}
+
+remapJar {
+    input.set shadowJar.archiveFile
+    dependsOn shadowJar
+    archiveClassifier = 'FORGE'
+}
+
+jar {
+    archiveClassifier = 'dev'
+}
+
+sourcesJar {
+    def commonSources = project(':common').sourcesJar
+    dependsOn commonSources
+    from commonSources.archiveFile.map { zipTree(it) }
+}
+
+components.java {
+    withVariantsFromConfiguration(project.configurations.shadowRuntimeElements) {
+        skip()
+    }
+}
